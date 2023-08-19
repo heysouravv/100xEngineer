@@ -1,29 +1,34 @@
-import ctypes
-import base64
-import subprocess
-import os
+import mysql.connector
 
-# Base64 encoded C code for printing "Hello, World!"
-encoded_c_code = b'''
-I2luY2x1ZGUgPHN0ZGlvLmg+CmludCBtYWluKCkgewogICAgcHJpbnRmKCJIZWxsbywgVW5pdmVyc2UhXG4iKTsKICAgIHJldHVybiAwOwp9
-'''
+def connect_to_rds_mysql(host, user, password, database):
+    try:
+        connection = mysql.connector.connect(
+            host=host,
+            user=user,
+            password=password,
+            database=database
+        )
+        if connection.is_connected():
+            db_info = connection.get_server_info()
+            print(f"Connected to MySQL RDS instance. MySQL server version: {db_info}")
+            cursor = connection.cursor()
+            cursor.execute("SELECT DATABASE();")
+            record = cursor.fetchone()
+            print(f"You're connected to the database: {record}")
+        return connection
+    except Exception as e:
+        print(f"Error while connecting to MySQL: {e}")
+        return None
 
-# Decode the base64 encoded C code
-decoded_c_code = base64.b64decode(encoded_c_code).decode('utf-8')
+# Example usage:
+host = "supplytrack-test.czz86ijqyvos.us-east-1.rds.amazonaws.com"
+user = "admin"
+password = "SupplyT123$"
+database = "SupplyTrack-Test"
 
-# Save the decoded C code to a temporary file
-with open('temp.c', 'w') as f:
-    f.write(decoded_c_code)
+connection = connect_to_rds_mysql(host, user, password, database)
 
-# Compile the C code
-subprocess.run(['gcc', 'temp.c', '-o', 'temp_file'])
-
-# Load the compiled C code as a shared library
-hello_lib = ctypes.CDLL('./temp_file')
-
-# Call the main function to print "Hello, World!"
-hello_lib.main()
-
-# Cleanup: remove the temporary files
-os.remove('temp.c')
-os.remove('temp_file')
+# Don't forget to close the connection when you're done
+if connection and connection.is_connected():
+    connection.close()
+    print("MySQL connection closed.")
