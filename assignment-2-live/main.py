@@ -14,6 +14,6 @@ class FizzBuzz:
                 print(num)
 
 if __name__ == "__main__":
-    n = 100
+    n = 100000000
     fb = FizzBuzz(n)
     fb.fizz_buzz()

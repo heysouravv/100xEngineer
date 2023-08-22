@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket Client</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.3/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #chatContainer {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #listdata {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .message-container {
+            margin: 10px 0;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .message-container.left {
+            justify-content: flex-start;
+        }
+
+        .message, .user {
+            padding: 10px;
+            border-radius: 15px;
+            margin: 2px;
+            max-width: 60%;
+        }
+
+        .message {
+            background-color: #f0f0f0;
+        }
+
+        .user {
+            background-color: #0099FF;
+            color: white;
+            text-align: right;
+        }
+
+        #inputContainer {
+            padding: 10px;
+            background-color: #eee;
+            border-top: 1px solid #ccc;
+            display: flex;  /* Add this */
+            justify-content: space-between; /* Add this */
+            align-items: center; /* Add this */
+        }
+
+        input[type="text"] {
+            flex: 1;  /* Add this */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #0099FF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            display: flex;  /* Add this */
+            align-items: center;  /* Add this */
+            justify-content: center;  /* Add this */
+        }
+
+        button:hover {
+            background-color: #0077BB;
+        }
+        .avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            background-color: #0099FF;
+            color: white;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="chatContainer">
+        <div id="nameModal" style="display: none;">
+            <label for="username">Enter your name:</label>
+            <input type="text" id="username" placeholder="Name">
+            <button id="submitName">Enter</button>
+        </div>
+        <!-- Chat messages display area -->
+        <div id="listdata"></div>
+
+        <!-- Input area -->
+        <div id="inputContainer">
+            <input type="text" id="txtinput" placeholder="Type a message..."/>
+            <button id="btn"><i class="fa-regular fa-paper-plane"></i></button>
+        </div>
+        <div id="logBox" style="border: 1px solid gray; height: 50px; overflow: auto; padding: 10px;">
+            <!-- Logs from the server will appear here -->
+        </div>
+    </div>
+
+    <script>
+            const socket = io("http://localhost:3000/", { withCredentials: true });
+
+            let username = prompt("Please enter your name:");
+            socket.emit("UserJoin", {'name': username});
+            function getThreeChars(name) {
+                return name.substr(0, 3).toUpperCase();
+            }
+            window.addEventListener("beforeunload", function(event) {
+                // Notify the server that the window is being closed
+                socket.emit("UserLeft", {'name': username});
+
+                // The delay is introduced to ensure the event is sent before closing.
+                // This method is not 100% reliable due to browser restrictions, but it's one approach.
+                event.returnValue = "Are you sure you want to leave?";
+                return event.returnValue;
+            });
+
+
+            document.getElementById("btn").addEventListener("click", function() {
+                let txtinput = document.getElementById("txtinput").value;                
+                // SEND TO SERVER 
+                socket.emit("newMSG", { 'name': username, 'message': txtinput });
+                document.getElementById("txtinput").value = "";  // Clear the input field
+            });
+
+            // LISTEN FROM SERVER IF DATA SEND
+            socket.on("sendallMSG", (p) => {
+                const listdata = document.getElementById("listdata");
+                const messageContainer = document.createElement("div");
+                messageContainer.className = p.data.name === username ? "message-container" : "message-container left";
+
+                const avatar = document.createElement("div");
+                avatar.className = "avatar";
+                avatar.innerText = getThreeChars(p.data.name);
+
+                const message = document.createElement("div");
+                message.className = "message";
+                message.innerText = p.data.message;
+
+                if (p.data.name === username) {
+                    messageContainer.appendChild(message);
+                    messageContainer.appendChild(avatar);
+                } else {
+                    messageContainer.appendChild(avatar);
+                    messageContainer.appendChild(message);
+                }
+
+                listdata.appendChild(messageContainer);
+                listdata.scrollTop = listdata.scrollHeight;  // Auto-scroll to the newest message
+            });
+            socket.on("NewUserJoined", (p) => {
+                const logBox = document.getElementById("logBox");
+                logBox.insertAdjacentHTML('beforeend', `<p>${p.data}</p>`);
+                logBox.scrollTop = logBox.scrollHeight;
+            });
+            socket.on("NewUserLeft", (p) => {
+                const logBox = document.getElementById("logBox");
+                logBox.insertAdjacentHTML('beforeend', `<p>${p.data}</p>`);
+                logBox.scrollTop = logBox.scrollHeight;
+            });
+    </script>
+</body>
+
+</html>
